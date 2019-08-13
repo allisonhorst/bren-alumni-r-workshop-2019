@@ -1,0 +1,419 @@
+---
+title: "Session_2"
+author: "Allison Horst"
+date: "6/1/2019"
+output: html_document
+---
+
+## Session 2: Intro to Rmarkdown, and more data wrangling & viz!
+
+- Why is it useful?
+- What are some formatting basics?
+- What is knitting? 
+
+1. Start a new R project, and create a new Rmarkdown file (.Rmd), knitting to HTML
+
+- Update YAML (there are a lot of options that can be included here...fow now, we'll just update the title and our name)
+
+- Description: code chunks & text (how is this different from a script?)
+
+- Delete everything below the first code chunk
+
+- Try just typing some normal text (without pound sign! Now this is just like writing a document...) in the non-code chunk area, then press knit (shortcut to knit: Command + Shift + K). 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+-------
+
+2. Some Rmarkdown formatting basics:
+
+# Really giant header (one pound sign in front)
+## Smaller as you add more pound signs in front
+### Even smaller...
+
+### Italics & bold
+*Italicize* text with a single asterisk on each side.
+
+**Bold** text with a double asterisk on each side. 
+
+### Lists
+
+* You
+* can
+* make
+* unordered lists
+  + with indentation
+    + here
+
+1. Or 
+2. make
+3. ordered 
+4. lists!
+  
+### Hyperlinks
+You can also include hyperlinks, [like this](https://rmarkdown.rstudio.com/authoring_basics.html)!
+
+### LaTeX equations
+For those of you using LaTeX, you can add an inline equation with single dollar signs: $x=2+y$
+
+Or you can add a display equation with double dollar signs: $$y = mx + b$$
+
+### Superscripts & subscripts
+Add superscripts with '^' on either side of what should be superscripted, like^this^!
+
+Add subscripts with a '~' on either side of what should be subscripted, like~this~!
+
+**...and so much more! See the Rmarkdown Cheat Sheet (Help > Cheatsheets) for more formatting options.** 
+
+------
+3. Start adding some code to your .Rmd in **code chunks**
+
+OK, now let's add some coding in here (because the power of Rmarkdown is really to have text, code, and outputs all in one place for improved efficiency, reproducibility, and lower risk of errors from copy/pasting from a working document or script).
+
+First, add a new code chunk. Insert > R, or shortcut: Command + option + I
+
+Attach necessary packages:
+
+`library(tidyverse)`
+
+`library(janitor)`
+
+**Note: you have options for what appears in your final knitted document! If you don't want ANYTHING from your code (the code itself, messages, warnings, or outputs) to appear in the knitted document, then add argument 'include = FALSE' to the code chunk header.**
+
+Other options for choosing what shows up in your knitted document (by adding to the code chunk header)
+
+**include = FALSE**: don't show anything (code, messages, output) from the chunk 
+**echo = FALSE**: don't show the code, but do show messages/warnings & outputs
+**results = HIDE**: show the code & messages/warnings, but not outputs (like graphs or something)
+
+A great summary of code chunk options: https://kbroman.org/knitr_knutshell/pages/Rmarkdown.html
+
+Here, I'll create a code chunk to attach necessary packages: 
+```{r, include = FALSE}
+
+library(tidyverse)
+library(janitor)
+library(ggrepel)
+
+```
+
+4. Read in data: 
+
+'biofuels.csv': Global biofuels consumption & production data (thousand barrels per day): https://catalog.data.gov/dataset/biofuels-consumption-and-production-by-country-2000-2010
+
+'wb_cc.csv': World Bank climate change indicators: https://data.worldbank.org/topic/climate-change
+
+*Note: the wb_cc.csv file has 4 non-data rows up top. We'll use the 'skip' argument in read_csv() to ignore them when importing.*
+
+*Note: in the biofuels.csv, missing data are indicated with '--'. We'll set those to 'NA' values, which R is built to deal with.*
+
+```{r}
+
+# Note: If I don't add anything to the code chunk header, then EVERYTHING (the code itself, any messages/warnings, and any printed outputs) will show up in the knitted document.
+
+# Note: in the code chunk, now treat this like working in a script. Notice that to comment within a code chunk, I have a pound sign again. 
+
+biofuels <- read_csv("biofuels.csv", na = "--")
+wb_data <- read_csv("wb_cc.csv", skip = 4) 
+
+# Recall: if you don't have subfolders within your working directory, then you don't need the 'session_2/' before the file names (e.g. if the files are in the parent working directory, then you just call the file names.)
+
+```
+
+Check them out! View, head, names, etc. - in the **console**, because I don't want all of that basic exploratory stuff showing up in my knitted document.
+
+5. Gather to get this in long format using tidyr::gather (note: or use pivot_longer from the development version of tidyr using devtools::install_github("hadley/tidyr") - they do the same thing, but the pivot_longer syntax is more intuitive than gather). 
+
+Here: what is "tidy" format? Each variable is a column; each row is an observation. Here, we have one variable (time) spread out over many columns (wide format). This is not tidy data - let's convert by compressing all year information into a single column, with the values attached. 
+
+```{r}
+
+biofuels_gather <- biofuels %>% 
+  gather(key = "year", value = "biofuel_amount", '2000':'2010')
+
+# Use head(biofuels_long) in the console to see the first 5 lines, ensuring that it's been gathered (or View() to see the whole df). Also notice that the class of 'year' is still a character (since it's been converted from a column name, which is always a character). Let's change the class of the year column to numeric (dbl can integer or numeric). 
+
+biofuels_gather$year <- as.numeric(biofuels_gather$year)
+
+# Now check the class again (you can use class(biofuels_long$year) in the console)
+
+```
+
+The World Bank data is similarly in wide format (years spread across columns). Let's gather that, too:
+```{r}
+
+wb_gather <- wb_data %>% 
+  gather(key = "year", value = "indicator_value", '1960':'2018')
+
+# And update year to numeric: 
+wb_gather$year <- as.numeric(wb_gather$year)
+
+```
+
+OK, now let's clean up column names for each
+
+6. janitor::clean_names()
+
+Clean up the names using janitor::clean_names (default is snake_case)
+```{r}
+
+biofuels_2 <- clean_names(biofuels_gather)
+wb_data_2 <- clean_names(wb_gather)
+
+```
+
+Use 'names' to see what the new column names are. Are they similar across datasets for the same variables (e.g. year and year, country and country, etc.)?
+
+Here, we see that in 'biofuels_2' the country name is in a column called 'id', but in 'wb_data_2' it is stored in column 'country_name'. We need those column names to match so that we can join our datasets. 
+
+7. dplyr::rename()
+
+Rename the column containing country names so that they match across data frames we want to join. Here, I'll rename 'id' to 'country_name' in the biofuels_2 df: 
+
+```{r}
+
+biofuels_rn <- biofuels_2 %>% 
+  rename(country_name = id)
+
+```
+
+Great. Now both data frames have a column 'country_name' and a column 'year' - and when we join them together, R will look for matching column names, and matching levels within columns, to merge the data together. 
+
+8. Join data frames by matching column names
+
+```{r}
+
+df_join <- full_join(biofuels_rn, wb_data_2)
+
+```
+
+Notice that it tells you which variables it's joining by.
+
+*There are other options for joins, but full_join is kind of the safest (all data is retained, even if there are matches in both datasets).*
+
+So now we have all of our data together. Let's do some additional wrangling, analysis and visualization. 
+
+9. Wrangling (select, filter)
+
+Let's say that we only want to retain information for the following: 
+
+- Total greenhouse gas emissions (kt of CO2 equivalent), EN.ATM.GHGT.KT.CE
+- From 2000 - 2010
+- For countries: United States, China, India, Russia
+
+```{r}
+
+df_subset <- df_join %>% 
+  filter(year >= 2000 & year <= 2010) %>% 
+  filter(indicator_code == "EN.ATM.GHGT.KT.CE") %>% 
+  rename(tot_ghg = indicator_value) %>% 
+  filter(country_name %in% c("United States","China","India")) %>% 
+  arrange(country_name)
+
+```
+
+10. dplyr::group_by + summarize - a powerful combo
+
+Let's say we want to calculate the total greenhouse gas emissions (kt CO2 equivalents) and biofuels consumption (thousands barrels per day) for each country from 2000 - 2010. We'll use group_by + summarize:
+
+```{r}
+
+totals <- df_subset %>% 
+  group_by(country_name) %>% 
+  summarize(
+    ghg = sum(tot_ghg),
+    biofuel = sum(biofuel_amount)*365*10*1000
+  )
+
+```
+
+...in the real world I'd convert units, but I'm fine with the mismatch here. 
+
+11. In-line variable referencing
+
+- Why is this so cool? Because it means as your data/code are updated, so will be your document. That is a) awesome, b) efficient, c) reproducible, d) way less risky than re-copying & pasting values/outcomes whenever your data or analyses are updated. 
+
+Reference variables from code using two backticks with an r in between, then whatever you want to do. 
+
+Like this: `r max(df_subset$biofuel_amount)`
+
+So it doesn't look like a value in code, but when you knit then the actual value shows up. Very cool. 
+
+You can also create variables within a code chunk, then just reference the variable name. For example, let's create a variable that calculates the total GHG emissions from all three countries in df_subset from 2000 - 2010. 
+
+```{r}
+
+ghg_sum <- sum(df_subset$tot_ghg)
+
+```
+
+
+Total combined GHG emissions (kt CO2 equivalents) by the United States, China and India between 2000 and 2010 was `r ghg_sum`...and you can mess with notation or whatever.
+
+*Note: You can run that in-line code like you would a chunk to make sure it evaluates correctly, by Command + Enter when your cursor is within the backticks.*
+
+12. group_by_split() --- if time. 
+
+What if we want to work with emissions/biofuels for each country separately? Well, one option is to create subsets using filter to match country names...which isn't bad if you have only three (like we do), but what if there are 100? Then we might want an easier way. dplyr::group_split() provides it. 
+
+```{r}
+
+df_split <- df_subset %>% 
+  group_by(country_name) %>% 
+  group_split()
+
+```
+
+Now, this seems like a kind of weird format if you just look at df_split, e.g. in the console since it's multiple tibbles stored within a list. We just need to access them by calling the appropriate index. 
+
+Check out df_split in the console. Notice that there is [[1]] for China, [[2]] for India, and [[3]] for United States - we'll use these indices to get the tibble (a slightly more advanced & functional data frame, but you can think of them interchangeably). Like, to get just a data frame for the US data: 
+
+```{r}
+
+us_df <- data.frame(df_split[3])
+
+# Check it out.
+
+# Want to send something back to a .csv (like for collaborators, or you, or whatever?). Use write_csv:
+
+write_csv(us_df, "us_example.csv")
+
+```
+
+Keep in mind that there are tons of dplyr functions. You can find them all here: https://dplyr.tidyverse.org/reference/index.html
+
+13. Let's make a graph of some sort...
+
+```{r, echo = FALSE, message = FALSE, fig.width = 5, fig.height = 4}
+
+ggplot(us_df, aes(x = year, y = biofuel_amount)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Year", y = "U.S. Biofuels Consumption (1000 barrels/day)") +
+  scale_x_continuous(breaks = seq(2000, 2010)) +
+  theme_bw() +
+  geom_smooth(size = 0.5,
+              color = "red",
+              lty = 2)
+
+
+# Notice when you knit, this output will show up! 
+```
+
+And if you have colleagues working in Word, you can knit there too! PDF looks nice, but you might need to install another package (like TinyTeX) to get it working. 
+
+## SESSION 2 PRACTICE TASK: 
+
+1. Create a new R Project (.RProj)
+
+2. Copy the file 'penguins_lter.csv' (sent in an email) into the project folder - notice that the file now shows up in the 'Files' tab in RStudio, and is in your working directory. Data: 
+
+3. Create a new Rmarkdown document (.Rmd), knitting to HTML. Remove everything after the first code chunk, and replace with some text (whatever you want). Try adding some text with different header sizes, bulletpoints, italicized, bold, etc. Continue adding text throughout (remember, text in markdown is NOT in a code chunk). 
+
+4. Knit (you will be automatically prompted to save the .Rmd the first time you hit 'knit' - make sure it's being saved in the project folder). Does your knitted HTML with formatted text show up? Cool. 
+
+*Knit frequently throughout this task to see what's showing up in your HTML! Also, write text between code chunks (or copy and paste the steps) and comment thoroughly - your future self will thank you for over-commenting!*
+
+5. Add a new code chunk in which you attach the 'tidyverse' and 'janitor' packages. Remember the shortcut for inserting a code chunk: Command + Option + I. Add an argument in the header so that this code chunk, messages and outputs do not show up in the knitted doc.
+
+```{r, include = FALSE}
+
+library(tidyverse)
+library(janitor)
+library(tidyr)
+
+```
+
+6. Add a new code chunk to read in the penguins_lter.csv dataset as data frame 'penguins', and immediately pipe through to janitor::clean_names() so that the column names in 'penguins' are in nice snake_case. Add an argument in the header so that this code chunk, messages and outputs do not show up in the knitted doc. 
+
+*Citation: Fraser W. 2017. Adelie penguin area-wide breeding population census, 1991 - present.. Environmental Data Initiative. https://doi.org/10.6073/pasta/5f8d8b26ee6f826166b6d330a93c1853. Dataset accessed 8/13/2019.*
+
+```{r, include = FALSE}
+
+penguins <- read_csv("penguins_lter.csv") %>% 
+  clean_names()
+
+```
+
+7. Explore the dataset with View, names, summary, etc. **Question:** Would you want to do this within a code chunk in your .Rmd, or in the Console? Why? For example, what happens in the knitted document if View(penguins) is a line in a code chunk? Feel free to try it out...
+
+8. Do some (piped) data wrangling! Create a new code chunk (make it so that the code will show up in your knitted document). In a single piped sequence, create a new df called 'penguins_new' in which you:
+
+- Filter to only retain penguins on Dream and Biscoe Islands
+- Keep columns 'island', 'flipper_length_mm', 'body_mass_g', and 'sex'
+- Rename the 'flipper_length_mm' column to 'flip_mm'
+- Arrange alphabetically by 'sex'
+
+```{r}
+
+penguins_new <- penguins %>% 
+  filter(island == "Dream" | island == "Biscoe") %>%  # alternatively: filter(island %in% c("Dream", "Biscoe"))
+  select(island, flipper_length_mm:sex) %>% # alternatively, just write out all column names separately
+  rename(flip_mm = flipper_length_mm) %>% 
+  arrange(sex)
+
+```
+
+9. Create a new code chunk, where the code shows up in your knitted HTML. From penguin_new, create a new df called 'penguins_gather' in which you gather the 'flipper_mm' and 'mass_g' columns data, so that the key is stored in a column called 'body_id' and the value is stored in a column called 'measured_value'. Hint: tidyr::gather().
+
+```{r}
+
+penguins_gather <- penguins_new %>% 
+  gather(key = "body_id",value = "measured_value", flip_mm:body_mass_g)
+
+# Alternatively, using tidyr:pivot_longer() - IF you have installed the development version of tidyr...or just wait a bit longer and it'll be part of core tidyverse:
+
+# penguins_gather <- penguins_new %>%
+#   pivot_longer(flip_mm:body_mass_g, names_to = "body_id", values_to = "measured_value")
+
+```
+
+10. Add a new column to penguins_gather called 'units', which contains the word "millimeters" when 'body_id' is "flipper_mm", and contains the word "grams" when 'body_id' is "mass_g". Hint: mutate() + case_when()
+
+```{r}
+
+penguins_gather <- penguins_gather %>% 
+  mutate(units = 
+           case_when(
+             body_id == "flip_mm" ~ "millimeters",
+             body_id == "body_mass_g" ~ "grams"
+           )
+         )
+
+```
+
+11. In a new code chunk, create a summary table (penguin_means) with the calculated mean values for flipper length and body mass by island and penguin sex (note: this means you'll need to group_by island, sex and body_id before using summarize() to find the mean of each group). 
+
+```{r}
+
+penguin_means <- penguins_gather %>% 
+  group_by(island, sex, body_id) %>% 
+  summarize(
+    mean_val = mean(measured_value)
+  )
+
+```
+
+12. Make some graph of the mean size data wit ggplot, and make sure the graph shows up in your knitted document. 
+
+For an example, I'll plot the mean flipper lengths for male and female penguins (excluding observations with no recording for sex - NAs): 
+
+```{r}
+
+flippers <- penguin_means %>% 
+  ungroup() %>% 
+  filter(body_id == "flip_mm") %>% 
+  drop_na(sex)
+
+ggplot(flippers, aes(x = sex, y = mean_val)) +
+  geom_col(aes(fill = island), position = "dodge") +
+  theme_bw() +
+  labs(x = "Sex", 
+       y = "Flipper length (mm)", 
+       title = "Adelie penguin flipper lengths, Biscoe and Dream Islands") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,200)) +
+  scale_fill_manual(values = c("purple","orange"))
+```
+
