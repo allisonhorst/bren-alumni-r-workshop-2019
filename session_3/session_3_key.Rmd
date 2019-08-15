@@ -290,4 +290,16 @@ ggplot() +
 
 ```
 
+#### Additional resources on spatial data analysis & viz
+
+##### General resources for spatial analysis in R: 
+
+- "Geocomputation with R" by Robin Lovelace: https://geocompr.robinlovelace.net/
+- sf: https://r-spatial.github.io/sf/articles/sf1.html
+- sf & ggplot: https://www.r-spatial.org/r/2018/10/25/ggplot2-sf.html
+
+tmap:
+
+- run 'vignette("tmap-getstarted")' in Console to see examples
+- https://cran.r-project.org/web/packages/tmap/vignettes/tmap-getstarted.html
 
