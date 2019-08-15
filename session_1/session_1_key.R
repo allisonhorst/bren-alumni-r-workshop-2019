@@ -252,6 +252,8 @@ ggplot(np_type_new, aes(x = type, y = n)) +
 # Data from: data.world (https://data.world/sportsvizsunday/womens-world-cup-data)
 #--------------------
 
+# For this task, you will find and visualize the 10 all-time top-scoring squads in the Women's World Cup. The worked solutions for this task (parts f - m) are included below. You will read in data directly from a website.
+
 # a. Create a new R Project (.Rproj)
 # b. Within in the project, create a new R script
 # c. Add a useful header, and remember to add thorough comments throughout
@@ -259,6 +261,28 @@ ggplot(np_type_new, aes(x = type, y = n)) +
 # e. Read in the Women's World Cup outcomes data by adding the following (and running) in your script! (Question: why would you want to include this as a line of code in your script, instead of running it in the Console?)
 
 wwc_outcomes <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-09/wwc_outcomes.csv")
+
+# f. Explore the dataset using base R functions View, head, tail, dim, names, summary. Think about: do you want this in your script (where it will be run every time you run the script), or do you want to do this in the Console?
+
+# g. Create a new df called 'wwc_goals' that only retains columns 'team', 'year' and 'score'. Hint: dplyr::select()
+
+# h. Starting from the wwc_goals subset, in a piped sequence use group_by + summarize to calculate the total number of goals scored by each *team* in *each World Cup year* (hint: group_by() both team and year, then sum). Store the outcome table as 'wwc_sep', with the summed goals in as a variable called 'goals'.
+
+# i. In a piped sequence, arrange wwc_sep from high-to-low by total goals scored, and keep only the top 10 scoring teams across all WWC years. Store this arranged and shortened dataset as 'top_scoring_squads'.
+
+# j. From the 'top_scoring_squads' df, combine the 'team' and 'year' columns from top_scoring_squads into a single column called 'country_yr', separated by a space. Hint: tidyr::unite(). Call the dataset with the combined column 'top_score_united'.
+
+# k. From the 'top_score_united' df, create a bar graph of the top 10 scoring teams, with the united team and year information ('country_yr') on the x-axis. Customize your graph.
+
+# l. Save your script. Close R (do not save the workspace).
+
+# m. Click on the .Rproj file you created to reopen it. Open the script you wrote to do this practice task. Re-run everything (Command + Shift + Enter) to ensure that you can reproduce everything right away. Hooray reproducibility!
+
+# Congratulations, see you in the next session! -Allison
+
+#----------------------
+# SESSION 1 PRACTICE TASK PARTS F - M SOLUTIONS:
+#----------------------
 
 # f. Explore the dataset using base R functions View, head, tail, dim, names, summary. Think about: do you want this in your script (where it will be run every time you run the script), or do you want to do this in the Console?
 

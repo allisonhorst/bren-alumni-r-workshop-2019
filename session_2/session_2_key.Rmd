@@ -304,7 +304,7 @@ ggplot(us_df, aes(x = year, y = biofuel_amount)) +
 
 And if you have colleagues working in Word, you can knit there too! PDF looks nice, but you might need to install another package (like TinyTeX) to get it working. 
 
-## SESSION 2 PRACTICE TASK: 
+## SESSION 2 PRACTICE TASK (solutions follow):
 
 1. Create a new R Project (.RProj)
 
