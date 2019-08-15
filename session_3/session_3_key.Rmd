@@ -1,0 +1,216 @@
+---
+title: "session_3"
+author: "Allison Horst"
+date: "8/14/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Session 3: Intro to spatial data analysis with 'sf' package
+
+### Goals: 
+
+- Read in spatial data (shapefiles)
+- Simplify polygons (st_simplify)
+- Add and transform projection (st_transform and st_crs)
+- Join spatial data (st_join)
+- Find spatial intersections (st_intersect)
+- Interactive plots with tmap
+- Updating color schemes, base layers, etc.
+- Plotting spatial lines
+- Creating sf data from lat/lon coordinates
+
+Awesome spatial analysis & viz in R resource:
+
+*Geocomputation in R* by Robin Lovelace, available online: 
+https://geocompr.robinlovelace.net/
+
+#### 1. Attach packages
+
+```{r}
+library(tidyverse)
+library(sf)
+library(tmap) # Need DEVELOPMENT version of tmap to use 'view' mode:
+# Install devtools (install.packages("devtools"))
+# Attach package devtools (library(devtools))
+# Get new version of tmap from GitHub: (install_github('mtennekes/tmap')) - yes to updates
+# Attach the tmap library in your script/.Rmd
+library(leaflet)
+```
+
+#### Useful information on file types (from gisgeography.com):
+
+- **.shp** is a mandatory Esri file that gives features their geometry. Every shapefile has its own .shp file that represent spatial vector data. For example, it could be points, lines and polygons in a map.
+
+- **.shx** are mandatory Esri and AutoCAD shape index position. This type of file is used to search forward and backwards.
+
+- **.dbf** is a standard database file used to store attribute data and object IDs. A .dbf file is mandatory for shape files. You can open .DBF files in Microsoft Access or Excel.
+
+- **.prj** is an optional file that contains the metadata associated with the shapefiles coordinate and projection system. If this file does not exist, you will get the error “unknown coordinate system”. If you want to fix this error, you have to use the “define projection” tool which generates .prj files.
+
+- **.xml** file types contains the metadata associated with the shapefile. If you delete this file, you essentially delete your metadata. You can open and edit this optional file type (.xml) in any text editor.
+
+- **.sbn** is an optional spatial index file that optimizes spatial queries. This file type is saved together with a .sbx file. These two files make up a shape index to speed up spatial queries.
+
+- **.sbx** are similar to .sbn files in which they speed up loading times. It works with .sbn files to optimize spatial queries. We tested .sbn and .sbx extensions and found that there were faster load times when these files existed. It was 6 seconds faster (27.3 sec versus 33.3 sec) compared with/without .sbn and .sbx files.
+
+- **.cpg** are optional plain text files that describes the encoding applied to create the shapefile. If your shapefile doesn’t have a cpg file, then it has the system default encoding. 
+
+###Dammed California mapping
+
+Data: California Jurisdictional Dams
+
+Accessed from: <https://hub.arcgis.com/datasets/98a09bec89c84681ae1701a2eb62f599_0/data?geometry=-150.074%2C31.096%2C-87.54%2C43.298&page=10>
+
+"This dataset is a feature class identifying all dams currently under the jurisdiction of the Division of Safety of Dams (DSOD). The dataset is extracted from DSOD internal records and contains basic information about the dam including the type of construction, basic dimensions such as height, length, and maximum storage capacity; abbreviated owner information to identify the entity legally responsible for the dam; an assessment of the downstream hazard associated with the dam; an assessment of the current condition of the dam; and indication as to whether the dam is operating at a restricted storage level. Several dams span rivers that define county boundaries, so DSOD references the right abutment of the dam to identify the location of the structure and to associate it with a singular administrative subdivision of California."
+
+Data: California eco-regions (EPA)
+
+Accessed from: <https://www.epa.gov/eco-research/ecoregion-download-files-state-region-9>
+
+#### 2. Read in the California ecoregions data (layer "ca_eco"), select only the attribute for eco-region (US_L3NAME), rename that to "Region", simplify the polygons (for time) using st_simplify, check & set the coordinate reference system (CRS)
+
+```{r}
+
+# Note to self: Do not try to use plot() to view this before simplifying - the polygons are big and it just takes a while (so we simplify the polygons first)
+
+ca_eco <- read_sf(dsn = ".", layer = "ca_eco") %>% # get the data
+  select(US_L3NAME) %>% # select the column with the eco-region names
+  rename(region = US_L3NAME) %>% 
+  st_simplify(dTolerance = 10) # simplify polygons (for time)
+
+plot(ca_eco)
+
+# Note: st_simplify() has drawbacks...I'll show an example below of oversimplifying -- you don't need to do this (just a demo & caution)
+
+# ca_eco_2 <- read_sf(dsn = ".", layer = "ca_eco") %>% # get the data
+#   select(US_L3NAME) %>% # select the column with the eco-region names
+#   rename(region = US_L3NAME) %>% 
+#   st_simplify(dTolerance = 100000)
+
+# Then in CONSOLE plot(ca_eco_2)
+
+# Check the CRS in the console with: 
+# st_crs(ca_eco) 
+
+# Let's say we want to change it to EPSG 4326:
+
+ca_eco <- ca_eco %>% 
+  st_transform(crs = 4326)
+
+# Check the CRS in the console again with:
+# st_crs(ca_eco_4326)
+
+```
+
+
+#### 3. Read in the California Counties shapefile data, and set CRS:
+
+```{r}
+ca_counties <- read_sf(dsn = ".", layer = "california_county_shape_file") # Read data
+
+st_crs(ca_counties) = 4326 # Set CRS
+```
+
+#### 4. Read in the California dams location data: 
+
+```{r}
+
+ca_dams <- read_sf(dsn = ".", layer = "California_Jurisdictional_Dams") %>% # Read data
+  rename(condition = Condition_) # remove annoying final underscore
+
+# In console, check the CRS (st_crs(ca_dams)) - notice that it's already EPSG 4326. Cool! Don't need to change it. Note: if there is NO EXISTING CRS for the spatial data, you use st_transform() instead of st_crs() to set it. 
+
+# Try plot(ca_dams) in the console - this will show first 9 attributes! Cool. 
+
+```
+
+#### 5. Plot counties, eco-regions (polygons) and dams (points) with ggplot2:
+
+```{r}
+
+# Note: this will look like a nightmare in the RStudio preview; better once knitted
+
+ggplot(ca_counties) + 
+  geom_sf(color = "black", # The base layer of ca_counties added...
+          size = 0.1) + # reduces polygon line width
+  geom_sf(data = ca_eco, # adding the polygons for eco-regions
+          aes(fill = region), 
+          alpha = 0.3, # alpha changes opacity
+          color = "NA", # remove outer lines
+          show.legend = FALSE) +
+  geom_sf(data = ca_dams, # Now add the dams (spatial points)
+          color = "gray30", 
+          alpha = 0.5,
+          size = 0.5) + # note need to write 'data = ' explicitly
+  coord_sf(datum = NA) + # Removes graticules
+  theme_minimal()
+
+# Cool.
+
+```
+
+#### 6. Just check out dams in the Sierra Nevada eco-region
+
+Join together the dam data with the eco-region data, filter to only include Sierra Nevada eco-region, retain only the attribute for Dam_Name, and make a map!
+
+```{r}
+
+# First: join intersected dams in Sierra Nevada eco-region
+sn <- ca_eco %>% 
+  filter(region == "Sierra Nevada") %>% 
+  st_join(ca_dams)
+
+ggplot(sn) +
+  geom_sf(data = ca_counties, fill = "wheat3", color = "NA") +
+  geom_sf(fill = "lemonchiffon4", color = "NA") +
+  geom_point(aes(x = Longitude, y = Latitude), size = 0.5, color = "red4") +
+  theme_void() +
+  coord_sf(datum=NA) +
+  labs(x = "", y = "", title = "CA Dams in Sierra Nevada Eco-Region")
+
+```
+
+#### 7. Just explore SB County eco-regions (clipping)
+
+Can plot just pieces using st_intersection (for example, if we only want to plot eco-regions in Santa Barbara County), and crop graphing space with coord_sf() limits.
+
+```{r}
+
+# Get just SB county
+sb <- ca_counties %>% 
+  filter(NAME == "Santa Barbara")
+
+# Clip eco-region spatial data to intersection with SB county:
+eco_clip <- st_intersection(ca_eco, sb)
+
+```
+
+Plot it!
+```{r}
+ggplot(eco_clip) +
+  geom_sf(data = ca_counties, fill = "gray90", color = "gray80", size = 0.2) + # First add gray California
+  geom_sf(aes(fill = region), color = "NA") + # ...then add eco-regions (clipped)
+  scale_fill_manual(values = c("darkolivegreen2","darkolivegreen","gold2")) + # Change color scheme
+  coord_sf(xlim = c(-121,-119), ylim = c(33.5,35.5)) + # Crop plotting area
+  geom_point(aes(x = -119.6982, y = 34.4208), size = 2) + # Add a point for SB City
+  geom_text(x = -119.6982, y = 34.35, label = "Santa Barbara") + # Then add a label for it
+  theme_minimal() + # Update theme
+  theme(legend.position = c(0.5,0.15)) +# Move the legend
+  labs(x = "", y = "", title = "Santa Barbara County Eco-Regions")
+```
+
+Hooray! Clipped polygons.
+
+Want to see that in tmap? 
+See alternative basemaps at: http://leaflet-extras.github.io/leaflet-providers/preview/ (or use ?leaflet in Console, and click on the link in 'server' to leaflet extras)
+```{r}
+tm_basemap("Esri.WorldImagery") +
+  tm_shape(eco_clip) +
+  tm_fill("region", palette = c("orange","purple","yellow"), alpha = 0.5)
+  
+```
+
