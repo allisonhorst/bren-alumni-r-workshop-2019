@@ -208,9 +208,86 @@ Hooray! Clipped polygons.
 Want to see that in tmap? 
 See alternative basemaps at: http://leaflet-extras.github.io/leaflet-providers/preview/ (or use ?leaflet in Console, and click on the link in 'server' to leaflet extras)
 ```{r}
-tm_basemap("Esri.WorldImagery") +
+
+sb_clip_tmap <- tm_basemap("Esri.WorldImagery") +
   tm_shape(eco_clip) +
   tm_fill("region", palette = c("orange","purple","yellow"), alpha = 0.5)
+
+tmap_mode("view")
+sb_clip_tmap
   
 ```
+
+Super coool.
+
+#### 8. Creating 'sf' data from lat/lon recordings
+
+Let's make a mock dataset tibble (like a df):
+
+```{r}
+my_example <- tribble(
+  ~id, ~lon, ~lat,
+  "tiger", -119.4, 34.35,
+  "lion", -119.41, 34.39,
+  "bear", -119.43, 34.38
+)
+```
+
+Check it out with View(), names, etc.
+
+Now, we want this to be understood as spatial data by R: 
+```{r}
+animals_sf <- st_as_sf(my_example, coords = c("lon","lat"), crs = 4326)
+```
+
+And now R understands it as spatial information (check class(animals_sf)), and we can plot (e.g. using tmap):
+
+```{r}
+
+animal_map <- tm_shape(animals_sf) +
+  tm_dots(labels = "id", col = "purple", size = 0.5)
+
+tmap_mode("view")
+animal_map
+
+```
+
+#### 9. Chloropleth of dam counts (if time)
+
+Find counts of dams per county:
+```{r}
+
+intersection <- st_intersection(x = ca_dams, y = ca_counties)
+
+dams_per_county <- intersection %>% 
+  group_by(NAME) %>% 
+  tally()
+
+# Check it out: 
+# View(dams_per_county)
+
+# Then merge to the ca_counties data: 
+
+ca_tot <- ca_counties %>% 
+  st_join(dams_per_county) %>% 
+  dplyr::select(NAME.x, n) %>%
+  rename(name = NAME.x)
+
+# Replace 'NA' counts with value '0' using tidyr::replace_na()
+ca_tot <- ca_tot %>% 
+  tidyr::replace_na(list(n = 0))
+
+```
+
+Make a map with color indicating number of dams: 
+
+```{r}
+
+ggplot() +
+  geom_sf(data = ca_tot, aes(fill = n), size = 0.2) +
+  theme_minimal() +
+  scale_fill_continuous(low = "yellow", high = "red")
+
+```
+
 
