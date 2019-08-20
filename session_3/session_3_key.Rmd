@@ -14,13 +14,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ### Goals: 
 
 - Read in spatial data (shapefiles)
-- Simplify polygons (st_simplify)
-- Add and transform projection (st_transform and st_crs)
+- Add/update projection (st_transform and st_crs)
 - Join spatial data (st_join)
 - Find spatial intersections (st_intersect)
+- Visualize with ggplot2 (geom_sf)
 - Interactive plots with tmap
 - Updating color schemes, base layers, etc.
-- Plotting spatial lines
 - Creating sf data from lat/lon coordinates
 
 Awesome spatial analysis & viz in R resource:
@@ -33,7 +32,7 @@ https://geocompr.robinlovelace.net/
 ```{r}
 library(tidyverse)
 library(sf)
-library(tmap) # Need DEVELOPMENT version of tmap to use 'view' mode:
+library(tmap) # Get development version of tmap to use 'view' mode:
 # Install devtools (install.packages("devtools"))
 # Attach package devtools (library(devtools))
 # Get new version of tmap from GitHub: (install_github('mtennekes/tmap')) - yes to updates
