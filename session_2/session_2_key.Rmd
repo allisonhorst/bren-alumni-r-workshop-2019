@@ -11,9 +11,9 @@ output: html_document
 - What are some formatting basics?
 - What is knitting? 
 
-1. Start a new R project, and create a new Rmarkdown file (.Rmd), knitting to HTML
+1. Create a new R project, and open a new Rmarkdown file (.Rmd), knitting to HTML
 
-- Update YAML (there are a lot of options that can be included here...fow now, we'll just update the title and our name)
+- Update YAML (there are a lot of options that can be included here...for now, we'll just update the title and our name)
 
 - Description: code chunks & text (how is this different from a script?)
 
@@ -95,13 +95,12 @@ Here, I'll create a code chunk to attach necessary packages:
 
 library(tidyverse)
 library(janitor)
-library(ggrepel)
 
 ```
 
 4. Read in data: 
 
-'biofuels.csv': Global biofuels consumption & production data (thousand barrels per day): https://catalog.data.gov/dataset/biofuels-consumption-and-production-by-country-2000-2010
+'biofuels.csv': Global biofuels consumption data (thousand barrels per day): https://catalog.data.gov/dataset/biofuels-consumption-and-production-by-country-2000-2010
 
 'wb_cc.csv': World Bank climate change indicators: https://data.worldbank.org/topic/climate-change
 
@@ -124,7 +123,7 @@ wb_data <- read_csv("wb_cc.csv", skip = 4)
 
 Check them out! View, head, names, etc. - in the **console**, because I don't want all of that basic exploratory stuff showing up in my knitted document.
 
-5. Gather to get this in long format using tidyr::gather (note: or use pivot_longer from the development version of tidyr using devtools::install_github("hadley/tidyr") - they do the same thing, but the pivot_longer syntax is more intuitive than gather). 
+5. Gather to get this in long format using tidyr::gather (note: or use pivot_longer from the dev version of tidyr using devtools::install_github("hadley/tidyr") - they do the same thing, but the pivot_longer syntax is more intuitive than gather). 
 
 Here: what is "tidy" format? Each variable is a column; each row is an observation. Here, we have one variable (time) spread out over many columns (wide format). This is not tidy data - let's convert by compressing all year information into a single column, with the values attached. 
 
@@ -133,11 +132,17 @@ Here: what is "tidy" format? Each variable is a column; each row is an observati
 biofuels_gather <- biofuels %>% 
   gather(key = "year", value = "biofuel_amount", '2000':'2010')
 
-# Use head(biofuels_long) in the console to see the first 5 lines, ensuring that it's been gathered (or View() to see the whole df). Also notice that the class of 'year' is still a character (since it's been converted from a column name, which is always a character). Let's change the class of the year column to numeric (dbl can integer or numeric). 
+# Use head(biofuels_gather) in the console to see the first 5 lines, ensuring that it's been gathered (or View() to see the whole df). Also notice that the class of 'year' is still a character (since it's been converted from a column name, which is always a character). Let's change the class of the year column to numeric (dbl can integer or numeric). 
 
 biofuels_gather$year <- as.numeric(biofuels_gather$year)
 
-# Now check the class again (you can use class(biofuels_long$year) in the console)
+# Note, alternatively (and more consistent with what our syntax so far): 
+
+biofuels_gather <- biofuels_gather %>% 
+  mutate(year = as.numeric(year))
+
+
+# Now check the class again (you can use class(biofuels_gather$year) in the console)
 
 ```
 
@@ -148,7 +153,9 @@ wb_gather <- wb_data %>%
   gather(key = "year", value = "indicator_value", '1960':'2018')
 
 # And update year to numeric: 
-wb_gather$year <- as.numeric(wb_gather$year)
+
+wb_gather <- wb_gather %>% 
+  mutate(year = as.numeric(year))
 
 ```
 
@@ -191,7 +198,7 @@ df_join <- full_join(biofuels_rn, wb_data_2)
 
 Notice that it tells you which variables it's joining by.
 
-*There are other options for joins, but full_join is kind of the safest (all data is retained, even if there are matches in both datasets).*
+*There are other options for joins, but full_join is kind of the safest (all data is retained, even if there are not matches in both datasets).*
 
 So now we have all of our data together. Let's do some additional wrangling, analysis and visualization. 
 
@@ -199,16 +206,18 @@ So now we have all of our data together. Let's do some additional wrangling, ana
 
 Let's say that we only want to retain information for the following: 
 
-- Total greenhouse gas emissions (kt of CO2 equivalent), EN.ATM.GHGT.KT.CE
+- Total greenhouse gas emissions (kt of CO2 equivalent), 'EN.ATM.GHGT.KT.CE'
 - From 2000 - 2010
 - For countries: United States, China, India, Russia
 
 ```{r}
 
-df_subset <- df_join %>% 
+df_ghg <- df_join %>% 
   filter(year >= 2000 & year <= 2010) %>% 
   filter(indicator_code == "EN.ATM.GHGT.KT.CE") %>% 
-  rename(tot_ghg = indicator_value) %>% 
+  rename(tot_ghg = indicator_value) # breaking here because we'll use this later on...
+
+df_subset <- df_ghg %>% 
   filter(country_name %in% c("United States","China","India")) %>% 
   arrange(country_name)
 
@@ -216,15 +225,16 @@ df_subset <- df_join %>%
 
 10. dplyr::group_by + summarize - a powerful combo
 
-Let's say we want to calculate the total greenhouse gas emissions (kt CO2 equivalents) and biofuels consumption (thousands barrels per day) for each country from 2000 - 2010. We'll use group_by + summarize:
+Let's say we want to calculate the total greenhouse gas emissions (annual kt CO2 equivalents) and biofuels consumption (thousands barrels per day) for each country from 2000 - 2010. We'll use group_by + summarize:
 
 ```{r}
 
 totals <- df_subset %>% 
+  mutate(annual_biofuels = biofuel_amount*365) %>% 
   group_by(country_name) %>% 
   summarize(
-    ghg = sum(tot_ghg),
-    biofuel = sum(biofuel_amount)*365*10*1000
+    ghg = sum(tot_ghg), # kt CO2 equivalent
+    biofuel = sum(annual_biofuels) # output is in thousands of barrels
   )
 
 ```
@@ -254,7 +264,7 @@ Total combined GHG emissions (kt CO2 equivalents) by the United States, China an
 
 *Note: You can run that in-line code like you would a chunk to make sure it evaluates correctly, by Command + Enter when your cursor is within the backticks.*
 
-12. group_by_split() --- if time. 
+12. group_by_split()
 
 What if we want to work with emissions/biofuels for each country separately? Well, one option is to create subsets using filter to match country names...which isn't bad if you have only three (like we do), but what if there are 100? Then we might want an easier way. dplyr::group_split() provides it. 
 
@@ -284,11 +294,11 @@ write_csv(us_df, "us_example.csv")
 
 Keep in mind that there are tons of dplyr functions. You can find them all here: https://dplyr.tidyverse.org/reference/index.html
 
-13. Let's make a graph of some sort...
+13. Let's make a graph of biofuels consumption.
 
 ```{r, echo = FALSE, message = FALSE, fig.width = 5, fig.height = 4}
 
-ggplot(us_df, aes(x = year, y = biofuel_amount)) +
+my_biofuels <- ggplot(us_df, aes(x = year, y = biofuel_amount)) +
   geom_point() +
   geom_line() +
   labs(x = "Year", y = "U.S. Biofuels Consumption (1000 barrels/day)") +
@@ -298,11 +308,71 @@ ggplot(us_df, aes(x = year, y = biofuel_amount)) +
               color = "red",
               lty = 2)
 
+my_biofuels
+
+# Really great graph examples in R (with code): https://www.r-graph-gallery.com/
 
 # Notice when you knit, this output will show up! 
 ```
 
-And if you have colleagues working in Word, you can knit there too! PDF looks nice, but you might need to install another package (like TinyTeX) to get it working. 
+What if I want to export a graph (as a png, or tiff or jpeg or something...)? Use ggsave()! Default is the last graph, but if you're stored your ggplot graph to a name (like my_biofuels above), then you can give it that instead:
+```{r}
+
+# ggsave("my_exported_graph.png", plot = my_biofuels, width = 5, height = 7, units = "in") # Inches is default for height/width
+
+# Shows up in your files tab (probably your project folder, and then you can move it/send it normally)
+
+```
+
+14. A few more graphs with ggplot2:
+
+Remember there are built-in datasets in R (and in a lot of tidyverse packages) that you can practice with! Run data() in the Console to bring up a list of the existing datasets. Like the classic 'diamonds' dataset in ggplot2. 
+
+See it by running View(diamonds) in the Console (ask yourself: what would your knitted doc look like if you had View(diamonds) in a code chunk within markdown?)
+
+Violin graph: price distributions based on clarity (from documentation: "a measurement of how clear the diamond is (I1 (worst), SI2, SI1, VS2, VS1, VVS2, VVS1, IF (best))")
+```{r, fig.width = 4, fig.height = 4}
+
+ggplot(data = diamonds, aes(x = clarity, y = price)) +
+  geom_violin(aes(fill = clarity), color = NA, show.legend = FALSE) +
+  theme_minimal()
+
+# This seems weird, right? Why does it look like diamonds with higher clarity also tend to be less expensive? What variable are we likely missing? 
+```
+
+Distribution of diamond sizes for different clarities: 
+```{r}
+ggplot(data = diamonds, aes(x = clarity, y = carat)) +
+  geom_boxplot(aes(fill = clarity, color = clarity), 
+               alpha = 0.5, 
+               show.legend = FALSE) +
+  scale_fill_brewer(palette = "Dark2") +
+  scale_color_brewer(palette = "Dark2") +
+  theme_light()
+
+# See ?ColorBrewer for more palettes
+
+# Or, set your own with scale_fill_manual() & scale_color_manual()!
+
+# Aha! This is making more sense then that diamonds of higher clarity would tend to be less expensive - because they also tend to be smaller. 
+
+```
+
+So let's look at that relationship directly (price vs. carats):
+
+```{r}
+
+ggplot(data = diamonds, aes(x = carat, y = price)) +
+  geom_point(aes(color = clarity)) +
+  facet_wrap(~cut) +
+  theme_bw()
+
+# Want to change colors for discrete levels? See scale_color_hue, scale_color_manual, etc. 
+```
+
+And if you have colleagues working in Word, you can knit there too! PDF looks nice, but you might need to install another package (like TinyTeX) to get it working.
+
+
 
 ## SESSION 2 PRACTICE TASK (solutions follow):
 

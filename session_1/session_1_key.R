@@ -1,6 +1,22 @@
+# FIRST: Make a folder somewhere on your computer, called something logical like "R Refresher Workshop."
+
+# Now open RStudio (I'll do a little recap here). Make a new R Project (.Rproj) called 'session_1' that lives within the folder you just made. That will create a folder, and everything directly in that project folder will be in the *working directory.* Notice there is also a .Rproj file created - I think of that as a bow that ties all the files dropped into that project folder together. That is amazing because then you don't have to worry about obscure/complicated absolute file paths that work uniquely on your computer. Since files within the project folder are bound together in the project, and exist in the working directory, then when you open the project those files are going to be pointed to immediately just by calling their name. Basically, a project means when you read in data it can look something like this:
+
+# read_csv("data_name.csv")
+
+# Instead of:
+
+# read_csv("C://user/yourname/an/obscure/impossible/filepath.csv")
+
+# Which means that your file path is not machine or user specific...and that is a big plus for reproducibility & collaboration.
+
+# OK. Once you have the project folder created, drop the data file (National Parks Visitation Data.csv) into the 'session_1' project folder. It should automatically show up in the files tab in RStudio for that project.
+
+# Now, create a new R script (File > New File > R Script), and:
+
 #-------------------------
 # Make a nice header!
-# These aren't active code b/c they're after a #
+# These aren't active code b/c they're after a # (comments)
 # Name
 # Date
 # Descriptive title
@@ -17,9 +33,9 @@ library(janitor) # Attach the janitor package
 # 2. Import the National Parks data
 #-------------------------
 
-np_data <- read_csv("session_1/National Parks Visitation Data.csv") # Note: if you just dropped the file into your project folder (not into a subfolder called 'part_1'), then you'd just have read_csv("file_name.csv") here.
+np_data <- read_csv("session_1/National Parks Visitation Data.csv") # Note: if you just dropped the file into your project folder (not into a subfolder called 'session_1'), then you'd just have read_csv("file_name.csv") here.
 
-# Note: the part_1 is included because it's within a subfolder in the project
+# Note: the session_1 is included because it's within a subfolder in the project
 
 #-------------------------
 # 3. Check it out a little bit
@@ -135,6 +151,7 @@ np_mutate_cw_2 <- np_data %>%
 
 np_group_by_1 <- np_data %>%
   filter(type == "National Park" & state == "CA") %>% # This filters to only include National Parks in CA
+  filter(year_raw != "Total") %>% # Get rid of the "Total" sums
   group_by(name) %>% # This creates "invisible" groupings
   summarize( # This steps allows for calculations by group
     tot_visitors = sum(visitors)
@@ -144,6 +161,7 @@ np_group_by_1 <- np_data %>%
 
 np_group_by_2 <- np_data %>%
   filter(type == "National Park" & state == "CA") %>%
+  filter(year_raw != "Total") %>%
   group_by(name) %>%
   summarize(
     tot_visitors = sum(visitors),
@@ -155,7 +173,7 @@ np_group_by_2 <- np_data %>%
 
 np_group_by_3 <- np_data %>%
   group_by(region, type) %>%
-  tally() # This is a great way to get count tables
+  tally() # This is a great way to get counts of observations for groups
 
 #------------------------
 # 11. tidyr::unite() + tidyr::sep()
@@ -207,7 +225,7 @@ region_np <- np_data %>%
   )
 
 # Now I'll make a graph of it:
-
+quartz() # Show that you can use this to open graphics window, or windows() on a PC
 ggplot(region_np, aes(x = year_raw, y = annual_sum, group = region)) +
   geom_line(size = 0.1, aes(color = region)) +
   geom_point(size = 0.5, aes(color = region)) +
@@ -234,9 +252,10 @@ np_type <- np_data %>%
 
 # So that's kind of annoying, especially when you make a graph w/categories and they show up alphabetically instead of in the order you expect. When that happens, factor reorder (using forcats::fct_reorder; see also forcats::fct_relevel if you want to explicitly set the order, e.g. for character levels)
 
-np_type_new <-np_type %>%
+np_type_new <- np_type %>%
   mutate(type = fct_reorder(type, n))
 
+quartz()
 ggplot(np_type_new, aes(x = type, y = n)) +
   geom_col(aes(fill = n)) +
   scale_fill_gradient(low = "purple", high = "red") +
